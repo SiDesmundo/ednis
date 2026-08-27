@@ -41,11 +41,33 @@ is found, there's a manual entry box (Sales Order / RA only).
 
 ---
 
+## Quick start (fresh PC)
+
+No Git or Python, but Chrome is installed — the common case:
+
+1. **Download the code** — on the GitHub page: **Code ▾ → Download ZIP**. Extract
+   it somewhere like your Desktop.
+2. **Set your NetSuite account** — open `launch_chrome_debug.bat` and
+   `netsuite_bridge.py` in Notepad and replace `3559546` with your real NetSuite
+   account number.
+3. **Run `install.bat`** — it installs Python (via `winget`), then asks you to
+   close the terminal, reopen it, and run `install.bat` again to finish.
+4. **Run `launch_chrome_debug.bat`** — log into NetSuite and eDesk in that window.
+5. **Run `run.bat`** — the panel opens.
+
+Steps 4–5 are all you repeat next time. The rest is one-time.
+
+If `winget` is missing (older Windows), install Python manually first — see
+[Manual downloads](#manual-downloads-if-you-dont-have-winget).
+
+---
+
 ## Prerequisites
 
 You need three things installed on Windows: **Git**, **Python 3.10+**, and
 **Google Chrome**. `install.bat` will install Python for you (via `winget`) if
-it's missing; the others you install once below.
+it's missing; the others you install once below. Git is only needed if you
+`git clone` instead of downloading the ZIP.
 
 ### Using winget (Windows 10/11, recommended)
 
@@ -60,6 +82,7 @@ winget install --id Google.Chrome -e
 
 Close and reopen your terminal afterwards so the updated `PATH` takes effect.
 
+<a name="manual-downloads-if-you-dont-have-winget"></a>
 ### Manual downloads (if you don't have winget)
 
 | Tool | Download | Notes |
