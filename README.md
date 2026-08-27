@@ -51,9 +51,8 @@ No Git or Python, but Chrome is installed — the common case:
 
 1. **Download the code** — on the GitHub page: **Code ▾ → Download ZIP**. Extract
    it somewhere like your Desktop.
-2. **Set your NetSuite account** — open `launch_chrome_debug.bat` and
-   `netsuite_bridge.py` in Notepad and replace `3559546` with your real NetSuite
-   account number.
+2. **Set your NetSuite account** — open `launch_chrome_debug.bat` in Notepad and
+   replace `3559546` (appears twice) with your real NetSuite account number.
 3. **Run `install.bat`** — it installs Python (via `winget`), then asks you to
    close the terminal, reopen it, and run `install.bat` again to finish.
 4. **Run `launch_chrome_debug.bat`** — log into NetSuite and eDesk in that window.
@@ -136,12 +135,15 @@ Dependencies (from `requirements.txt`): `playwright`, `customtkinter`.
 
 ### One-time config
 
-The NetSuite account URLs are hard-coded. Update them for your account:
+**Required:** `launch_chrome_debug.bat` — replace `3559546` in the
+`https://3559546.app.netsuite.com` start URL (both lines) with your NetSuite
+account number. This is the only value you must change; the Python code finds
+the NetSuite tab by domain, so it's account-agnostic.
 
-- `launch_chrome_debug.bat` — the `https://3559546.app.netsuite.com` start URL.
-- `netsuite_bridge.py` — `SEARCH_INPUT_SELECTORS` has a brittle absolute-XPath
-  fallback from one account's DOM; the first few selectors are generic and
-  usually match, but adjust if global search isn't found.
+**Only if global search fails:** `netsuite_bridge.py` → `SEARCH_INPUT_SELECTORS`
+(lines 14–21). The first selectors are generic and usually match; the last is a
+brittle absolute XPath from one account's DOM. Adjust only if you get the
+*"Could not find the NetSuite global search box"* error.
 
 ---
 
