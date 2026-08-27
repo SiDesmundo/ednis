@@ -8,6 +8,10 @@ It never launches its own browser and never touches your credentials. It attache
 to a Chrome window **you** started and logged into, over the Chrome DevTools
 Protocol (port 9222).
 
+> **Platform: Windows.** The `.bat` launcher scripts are Windows-only. The Python
+> app itself (`customtkinter` + `playwright`) is cross-platform — see
+> [macOS / Linux](#macos--linux) to adapt it.
+
 ---
 
 ## What it does
@@ -171,6 +175,45 @@ python command_center.py
 A small dark panel appears, pinned on top. Tick what you want to open, click
 **Open Selected**. For a ticket with no order number, paste one into the manual
 box and press Enter.
+
+---
+
+## macOS / Linux
+
+The app runs, but you'll need to replace the three `.bat` files with your own
+commands.
+
+**Start the automation Chrome window** (instead of `launch_chrome_debug.bat`):
+
+```bash
+# macOS
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --remote-debugging-port=9222 \
+  --user-data-dir="$HOME/.netsuite-automation-profile" \
+  "https://YOURACCT.app.netsuite.com"
+
+# Linux
+google-chrome --remote-debugging-port=9222 \
+  --user-data-dir="$HOME/.netsuite-automation-profile" \
+  "https://YOURACCT.app.netsuite.com"
+```
+
+**Setup** (instead of `install.bat`):
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Start the app** (instead of `run.bat`):
+
+```bash
+source .venv/bin/activate
+python command_center.py
+```
+
+Nothing in the Python code is Windows-specific, so no source changes are needed.
 
 ---
 
