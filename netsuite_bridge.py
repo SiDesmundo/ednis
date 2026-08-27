@@ -167,6 +167,54 @@ def open_sales_orders_with_ra(query: str, log=print):
         p.stop()
 
 
+def open_return_auths(query: str, log=print) -> int:
+    """Search NetSuite for `query` and open every matching Return Authorization
+    in its own new tab, WITHOUT opening the Sales Order. Returns how many were
+    opened (0 if no RA is tied to the order)."""
+    p, browser = _connect()
+    try:
+        context, page = _get_netsuite_page(browser)
+        _type_into_search(page, query, log)
+
+        ra_results = page.locator("text=/^Return Authorization:/")
+
+        # Wait for the search to resolve to *something* for this order, so we
+        # can tell "no RA tied" apart from "bad order number".
+        try:
+            page.locator(
+                "text=/^(Sales Order|Return Authorization):/"
+            ).first.wait_for(timeout=8000)
+        except Exception as e:
+            raise RuntimeError(
+                f"No Sales Order or Return Authorization result showed up for "
+                f"'{query}'. Double-check the order number."
+            ) from e
+
+        count = ra_results.count()
+        if count == 0:
+            log(f"No Return Authorization tied to {query}.")
+            return 0
+
+        log(f"Found {count} return authorization(s), opening in new tabs...")
+
+        hrefs = []
+        for i in range(count):
+            anchor = ra_results.nth(i).locator("xpath=ancestor-or-self::a[1]")
+            href = anchor.get_attribute("href")
+            if href:
+                hrefs.append(urljoin(page.url, href))
+
+        page.keyboard.press("Escape")
+
+        for href in hrefs:
+            open_background_tab(context, href)
+            log(f"Opened {href}")
+
+        return len(hrefs)
+    finally:
+        p.stop()
+
+
 def open_ecom_record(number: str, log=print) -> None:
     """Search NetSuite for the raw ecom record number, open it in a new tab,
     then open the link under its PARENT field in another new tab -- same

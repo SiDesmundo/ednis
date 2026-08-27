@@ -22,7 +22,7 @@ hit **Open Selected**. The app then:
 | Checkbox | What happens |
 | --- | --- |
 | **Sales Order** | Reads `ORDER NO.` off the ticket, runs NetSuite global search, opens every matching Sales Order in a new tab. |
-| **Return Auth** | Also opens any Return Authorization tied to that order. |
+| **Return Auth** | Opens any Return Authorization tied to that order. Independent of Sales Order — tick it alone to open only the RA, or with Sales Order to open both. |
 | **Tracking** | Reads `TRACKING NO.` + carrier off the ticket, opens the carrier's tracking page (USPS / UPS / Amazon / FedEx / DHL). |
 | **Ecom Record (Pre-Sales)** | For pre-sales tickets with no order yet: reads the `#number` from the subject, opens the Ecom Record and its PARENT record. |
 

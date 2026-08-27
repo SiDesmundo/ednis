@@ -3,7 +3,12 @@ import threading
 import customtkinter as ctk
 
 from edesk_bridge import detect_ecom_number, detect_order_number, open_tracking_page
-from netsuite_bridge import open_ecom_record, open_sales_orders, open_sales_orders_with_ra
+from netsuite_bridge import (
+    open_ecom_record,
+    open_return_auths,
+    open_sales_orders,
+    open_sales_orders_with_ra,
+)
 from order_parser import parse_order_number
 
 ctk.set_appearance_mode("dark")
@@ -254,7 +259,7 @@ class CommandCenter:
         results = []
         try:
             if selected["so"] or selected["ra"]:
-                results.append(self._open_order(include_ra=selected["ra"]))
+                results.append(self._open_order(selected["so"], selected["ra"]))
 
             if selected["tracking"]:
                 results.append(self._open_tracking())
@@ -268,24 +273,34 @@ class CommandCenter:
         finally:
             self.set_controls_enabled(True)
 
-    def _open_order(self, include_ra):
+    def _open_order(self, want_so, want_ra):
         query = detect_order_number(
             log=lambda msg: self.set_status(msg, "info"), pick_page=self.ask_pick_ticket
         )
         if not query:
             return "no order number found"
+        return self._open_order_records(query, want_so, want_ra)
 
-        if include_ra:
-            so_count, ra_count = open_sales_orders_with_ra(
-                query, log=lambda msg: self.set_status(msg, "info")
-            )
+    def _open_order_records(self, query, want_so, want_ra):
+        """Opens exactly what's asked for: Sales Order, Return Authorization, or
+        both. Returns a short summary string for the status bar."""
+        logf = lambda msg: self.set_status(msg, "info")
+
+        if want_so and want_ra:
+            so_count, ra_count = open_sales_orders_with_ra(query, log=logf)
             so_noun = "sales order" if so_count == 1 else "sales orders"
             if ra_count == 0:
                 return f"{so_count} {so_noun}, no RA tied"
             ra_noun = "RA" if ra_count == 1 else "RAs"
             return f"{so_count} {so_noun} + {ra_count} {ra_noun}"
 
-        count = open_sales_orders(query, log=lambda msg: self.set_status(msg, "info"))
+        if want_ra:
+            ra_count = open_return_auths(query, log=logf)
+            if ra_count == 0:
+                return "no RA tied to this order"
+            return f"{ra_count} RA" if ra_count == 1 else f"{ra_count} RAs"
+
+        count = open_sales_orders(query, log=logf)
         noun = "sales order" if count == 1 else "sales orders"
         return f"{count} {noun}"
 
@@ -317,34 +332,29 @@ class CommandCenter:
             self.set_status(f"Couldn't find an order number in: {raw[:60]}", "error")
             return
 
+        want_so = self.checkboxes["so"].get()
+        want_ra = self.checkboxes["ra"].get()
+        # The manual box is Sales Order / RA only. If neither is ticked (e.g.
+        # only Tracking is), fall back to Sales Order so the button still does
+        # the obvious thing.
+        if not want_so and not want_ra:
+            want_so = True
+
         self.set_controls_enabled(False)
-        self._search_netsuite(query, include_ra=self.checkboxes["ra"].get())
+        self._search_netsuite(query, want_so, want_ra)
 
     # --- Shared NetSuite step -----------------------------------------------
 
-    def _search_netsuite(self, query, include_ra=False):
+    def _search_netsuite(self, query, want_so, want_ra):
         self.set_status(f"Searching NetSuite for {query}...", "info")
         threading.Thread(
-            target=self._run_search, args=(query, include_ra), daemon=True
+            target=self._run_search, args=(query, want_so, want_ra), daemon=True
         ).start()
 
-    def _run_search(self, query, include_ra=False):
+    def _run_search(self, query, want_so, want_ra):
         try:
-            if include_ra:
-                so_count, ra_count = open_sales_orders_with_ra(
-                    query, log=lambda msg: self.set_status(msg, "info")
-                )
-                so_noun = "sales order" if so_count == 1 else "sales orders"
-                if ra_count == 0:
-                    msg = f"Opened {so_count} {so_noun} for {query}. No Return Authorization tied to it."
-                else:
-                    ra_noun = "return authorization" if ra_count == 1 else "return authorizations"
-                    msg = f"Opened {so_count} {so_noun} and {ra_count} {ra_noun} for {query}."
-                self.set_status(msg, "success")
-            else:
-                count = open_sales_orders(query, log=lambda msg: self.set_status(msg, "info"))
-                noun = "sales order" if count == 1 else "sales orders"
-                self.set_status(f"Opened {count} {noun} for {query}.", "success")
+            summary = self._open_order_records(query, want_so, want_ra)
+            self.set_status(f"{query} — {summary}.", "success")
             self.root.after(0, lambda: self.entry.delete(0, "end"))
         except Exception as e:
             self.set_status(str(e), "error")
