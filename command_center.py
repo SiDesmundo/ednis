@@ -26,14 +26,16 @@ STATUS_STYLES = {
     "error": dict(fg_color="#4a1f24", text_color="#ff9aa2"),
 }
 
-# Checked up front, then all run in one go when "Open Selected" is clicked —
+# Selected up front, then all run in one go when "Open Selected" is clicked —
 # no more waiting for one action to finish before queuing the next.
+# Rendered as a 2x2 grid of big toggle tiles (easier to hit than checkboxes).
 CHECKBOX_ITEMS = [
     dict(key="so", text="Sales Order", fg_color="#2f6fed", hover_color="#2558c4"),
     dict(key="ra", text="Return Auth", fg_color="#0891b2", hover_color="#0e7490"),
     dict(key="tracking", text="Tracking", fg_color="#b45309", hover_color="#92400e"),
-    dict(key="ecom", text="Ecom Record (Pre-Sales)", fg_color="#7c3aed", hover_color="#6d28d9"),
+    dict(key="ecom", text="Ecom Record\n(Pre-Sales)", fg_color="#7c3aed", hover_color="#6d28d9"),
 ]
+CHECKBOX_BY_KEY = {item["key"]: item for item in CHECKBOX_ITEMS}
 DEFAULT_CHECKED = {"so"}
 
 
@@ -42,8 +44,8 @@ class CommandCenter:
         self.root = ctk.CTk()
         self.root.title("EDNIS")
         self.root.attributes("-topmost", True)
-        self.root.geometry("300x430+40+40")
-        self.root.minsize(260, 340)
+        self.root.geometry("320x470+40+40")
+        self.root.minsize(300, 380)
         self.root.resizable(True, True)
         self.root.configure(fg_color="#1a1c22")
 
@@ -64,7 +66,7 @@ class CommandCenter:
 
         subtitle = ctk.CTkLabel(
             self.scroll,
-            text="Ticket open in the automation Chrome window? Check what to open.",
+            text="Ticket open in the automation Chrome window? Tap what to open.",
             font=FONT_BODY,
             text_color="#7b8291",
             wraplength=260,
@@ -73,23 +75,27 @@ class CommandCenter:
         subtitle.pack(anchor="w", padx=10, pady=(0, 8), fill="x")
         self._wrap_labels.append(subtitle)
 
-        for item in CHECKBOX_ITEMS:
-            var = ctk.BooleanVar(value=item["key"] in DEFAULT_CHECKED)
-            cb = ctk.CTkCheckBox(
-                self.scroll,
+        self.grid_frame = ctk.CTkFrame(self.scroll, fg_color="transparent")
+        self.grid_frame.pack(fill="x", padx=8, pady=(0, 4))
+        self.grid_frame.grid_columnconfigure((0, 1), weight=1, uniform="tiles")
+
+        for i, item in enumerate(CHECKBOX_ITEMS):
+            key = item["key"]
+            var = ctk.BooleanVar(value=key in DEFAULT_CHECKED)
+            tile = ctk.CTkButton(
+                self.grid_frame,
                 text=item["text"],
-                variable=var,
-                font=FONT_BODY,
-                text_color="#e8eaed",
-                fg_color=item["fg_color"],
-                hover_color=item["hover_color"],
-                border_color="#5b6274",
-                checkbox_width=20,
-                checkbox_height=20,
+                font=FONT_BUTTON,
+                height=62,
+                corner_radius=10,
+                border_width=2,
+                border_color=item["fg_color"],
+                command=lambda k=key: self.toggle_tile(k),
             )
-            cb.pack(anchor="w", padx=14, pady=4)
-            self.checkboxes[item["key"]] = var
-            self.checkbox_widgets[item["key"]] = cb
+            tile.grid(row=i // 2, column=i % 2, padx=4, pady=4, sticky="nsew")
+            self.checkboxes[key] = var
+            self.checkbox_widgets[key] = tile
+            self._style_tile(key)
 
         self.open_btn = ctk.CTkButton(
             self.scroll,
@@ -168,6 +174,30 @@ class CommandCenter:
         for label in self._wrap_labels:
             label.configure(wraplength=wrap)
 
+    # --- Toggle tiles (2x2 grid, big hitboxes) -------------------------------
+
+    def toggle_tile(self, key):
+        var = self.checkboxes[key]
+        var.set(not var.get())
+        self._style_tile(key)
+
+    def _style_tile(self, key):
+        """Filled in its accent color when selected, hollow outline when not."""
+        item = CHECKBOX_BY_KEY[key]
+        tile = self.checkbox_widgets[key]
+        if self.checkboxes[key].get():
+            tile.configure(
+                fg_color=item["fg_color"],
+                hover_color=item["hover_color"],
+                text_color="#ffffff",
+            )
+        else:
+            tile.configure(
+                fg_color="transparent",
+                hover_color=item["fg_color"],
+                text_color="#e8eaed",
+            )
+
     # --- Status / control helpers ---------------------------------------------
 
     def set_status(self, text, state="info"):
@@ -183,8 +213,10 @@ class CommandCenter:
         state = "normal" if enabled else "disabled"
         for btn in self.buttons.values():
             self.root.after(0, lambda b=btn: b.configure(state=state))
-        for cb in self.checkbox_widgets.values():
+        for key, cb in self.checkbox_widgets.items():
             self.root.after(0, lambda c=cb: c.configure(state=state))
+            if enabled:
+                self.root.after(0, lambda k=key: self._style_tile(k))
 
     def ask_pick_ticket(self, labels):
         """Called from a background thread when more than one eDesk ticket
