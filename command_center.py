@@ -31,7 +31,7 @@ STATUS_STYLES = {
 # Rendered as a 2x2 grid of big toggle tiles (easier to hit than checkboxes).
 CHECKBOX_ITEMS = [
     dict(key="so", text="Sales Order", fg_color="#2f6fed", hover_color="#2558c4"),
-    dict(key="ra", text="Return Auth", fg_color="#0891b2", hover_color="#0e7490"),
+    dict(key="ra", text="Return Authorization", fg_color="#0891b2", hover_color="#0e7490"),
     dict(key="tracking", text="Tracking", fg_color="#b45309", hover_color="#92400e"),
     dict(key="ecom", text="Ecom Record\n(Pre-Sales)", fg_color="#7c3aed", hover_color="#6d28d9"),
 ]
