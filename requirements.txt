@@ -1,2 +1,2 @@
 playwright
-customtkinter
+pywebview

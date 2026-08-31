@@ -8,18 +8,19 @@ It never launches its own browser and never touches your credentials. It attache
 to a Chrome window **you** started and logged into, over the Chrome DevTools
 Protocol (port 9222).
 
-> **Platform: Windows.** The `.bat` launcher scripts are Windows-only. The Python
-> app itself (`customtkinter` + `playwright`) is cross-platform — see
+> **Platform: Windows.** The `.bat` launcher scripts are Windows-only, and the UI
+> uses the system WebView2 runtime (ships with Windows 10/11). The Python side
+> (`pywebview` + `playwright`) is otherwise cross-platform — see
 > [macOS / Linux](#macos--linux) to adapt it.
 
 ---
 
 ## What it does
 
-You open an eDesk ticket in the automation Chrome window, tick what you want, and
-hit **Open Selected**. The app then:
+You open an eDesk ticket in the automation Chrome window, select the tiles for
+what you want, and hit **Open Selected**. The app then:
 
-| Checkbox | What happens |
+| Tile | What happens |
 | --- | --- |
 | **Sales Order** | Reads `ORDER NO.` off the ticket, runs NetSuite global search, opens every matching Sales Order in a new tab. |
 | **Return Auth** | Opens any Return Authorization tied to that order. Independent of Sales Order — tick it alone to open only the RA, or with Sales Order to open both. |
@@ -33,7 +34,9 @@ is found, there's a manual entry box (Sales Order / RA only).
 
 | File | Role |
 | --- | --- |
-| `command_center.py` | The GUI (CustomTkinter). Entry point. |
+| `command_center.py` | Entry point — opens the window (pywebview) and exposes `Api` to the page. |
+| `ui.html` | The whole interface: HTML/CSS/JS, ported from the Canva mockup. |
+| `assets/` | Bundled pixel font (Pixelify Sans, OFL). |
 | `edesk_bridge.py` | Reads order / tracking / ecom numbers off the open eDesk ticket. |
 | `netsuite_bridge.py` | Drives NetSuite global search, opens result records in new tabs. |
 | `order_parser.py` | Normalizes a raw order number into a NetSuite search query. |
@@ -128,10 +131,13 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Dependencies (from `requirements.txt`): `playwright`, `customtkinter`.
+Dependencies (from `requirements.txt`): `playwright`, `pywebview`.
 
 > `playwright install` is **not** needed — the app connects to your existing
 > Chrome over CDP and never uses Playwright's bundled browser.
+>
+> On Windows, `pywebview` uses the built-in **WebView2** runtime (already present
+> on Windows 10/11). No extra download.
 
 ### One-time config
 
@@ -174,9 +180,11 @@ or manually:
 python command_center.py
 ```
 
-A small dark panel appears, pinned on top. Tick what you want to open, click
-**Open Selected**. For a ticket with no order number, paste one into the manual
-box and press Enter.
+A small (300px-wide) frameless panel appears, pinned on top — drag it anywhere by
+the body, **–** to minimize, **✕** to close. It auto-sizes its height to fit its
+contents (the status line at the bottom grows with longer messages). Tap the
+tiles for what you want to open, then click **Open Selected**. For a ticket with
+no order number, paste one into the manual box and press Enter.
 
 ---
 
@@ -215,7 +223,10 @@ source .venv/bin/activate
 python command_center.py
 ```
 
-Nothing in the Python code is Windows-specific, so no source changes are needed.
+`pywebview` uses the OS webview — WebKit (via `pywebview[qt]` or the system
+GTK/WebKit) on Linux, the native WebKit on macOS. Install the matching extra if
+prompted (`pip install 'pywebview[qt]'` or `[gtk]`). Nothing in the Python code
+is Windows-specific.
 
 ---
 
