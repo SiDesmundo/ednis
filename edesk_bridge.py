@@ -20,14 +20,30 @@ TRACKING_URL_TEMPLATES = {
     "DHL": "https://www.dhl.com/ph-en/home/tracking.html?tracking-id={}",
 }
 
-TRACKING_NUMBER_RE = re.compile(r"[A-Z0-9]{8,}")
+# 8+ chars of letters/digits. A real tracking number always has at least one
+# digit — this lets us skip service-name words ("PRIORITY", "ECOMMERCE",
+# "GROUND") that sit between the carrier keyword and the actual number.
+TRACKING_TOKEN_RE = re.compile(r"[A-Z0-9]{8,}")
 
-CARRIER_ALIASES = {
-    "USPS": ("USPS", "US POSTAL SERVICE"),
-    "UPS": ("UPS",),
-    "AMAZON": ("AMAZON SHIPPING","AMAZON LOGISTICS - USA"),
-    "FEDEX": ("FEDEX",),
-    "DHL": ("DHL", "DHL eCommerce America"),
+
+def _first_tracking_number(upper: str, start: int = 0):
+    for m in TRACKING_TOKEN_RE.finditer(upper, start):
+        token = m.group(0)
+        if any(c.isdigit() for c in token):
+            return token
+    return None
+
+# Loose keyword match, not an exact carrier-name match: if any of these
+# substrings shows up in the text next to the TRACKING NO. label, that's the
+# carrier. Order matters — more specific / less ambiguous keys are checked
+# first, so "USPS" wins before the bare "UPS" fallback, and a full
+# "DHL eCommerce America" still resolves to DHL.
+CARRIER_KEYWORDS = {
+    "USPS": ("USPS", "U.S.P.S", "UNITED STATES POSTAL", "POSTAL SERVICE", "US MAIL"),
+    "FEDEX": ("FEDEX", "FED EX", "FED-EX"),
+    "DHL": ("DHL",),
+    "AMAZON": ("AMAZON SHIPPING", "AMAZON LOGISTICS", "AMZL"),
+    "UPS": ("UPS", "UNITED PARCEL"),
 }
 
 ECOM_NUMBER_RE = re.compile(r"#\s*(\d+)")
@@ -46,21 +62,36 @@ class NoTicketTabsError(RuntimeError):
     pass
 
 
+def _match_carrier(upper: str):
+    """First (carrier, index-just-past-the-keyword) whose keyword appears in
+    `upper`, or (None, -1). Loose substring match, not an exact name match."""
+    for carrier, keywords in CARRIER_KEYWORDS.items():
+        for kw in keywords:
+            idx = upper.find(kw)
+            if idx != -1:
+                return carrier, idx + len(kw)
+    return None, -1
+
+
 def parse_tracking_info(text: str):
-    """Returns (carrier, tracking_number, url) or (None, None, None)."""
+    """Returns (carrier, tracking_number, url) or (None, None, None).
+
+    The carrier is matched loosely: any known keyword anywhere in the text is
+    enough ('USPS Priority Mail', 'FedEx Ground Economy', 'DHL eCommerce'),
+    not an exact carrier-name string. Once a carrier is recognized, its
+    specific tracking URL is always used. Prefers a tracking number that comes
+    after the carrier mention, but falls back to the first one anywhere."""
     upper = text.upper()
-    for carrier, aliases in CARRIER_ALIASES.items():
-        for alias in aliases:
-            idx = upper.find(alias)
-            if idx == -1:
-                continue
-            after = upper[idx + len(alias):]
-            m = TRACKING_NUMBER_RE.search(after)
-            if m:
-                number = m.group(0)
-                url = TRACKING_URL_TEMPLATES[carrier].format(number)
-                return carrier, number, url
-    return None, None, None
+    carrier, after_idx = _match_carrier(upper)
+    if not carrier:
+        return None, None, None
+
+    number = _first_tracking_number(upper, after_idx) or _first_tracking_number(upper)
+    if not number:
+        return None, None, None
+
+    url = TRACKING_URL_TEMPLATES[carrier].format(number)
+    return carrier, number, url
 
 
 def _read_order_number(page):
