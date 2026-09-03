@@ -23,7 +23,7 @@ def find_active_page(context, domain: str):
     return candidates[0]
 
 
-def open_background_tab(context, url: str, timeout: float = 5000):
+def open_background_tab(context, url: str, timeout: float = 9000):
     """Opens `url` in a new tab without switching focus to it. Returns the
     Playwright Page for the new tab."""
     try:
